@@ -14,7 +14,7 @@ const spotifyApi = new SpotifyWebApi({
   redirectUri: process.env.SPOTIFY_CLIENT_REDIRECT,
 });
 
-app.use(express.static(path.join(__dirname, "views")));
+app.use(express.static(path.join(__dirname, "build"))); // Serve the React app from the "build" folder
 
 app.use(
   session({
@@ -29,22 +29,18 @@ function generateRandomString(length) {
   const possibleChars =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   for (let i = 0; i < length; ++i) {
-    let randomIndex = Math.floor(Math.random() * possibleChars.length); // Fix the index range
+    let randomIndex = Math.floor(Math.random() * possibleChars.length);
     text += possibleChars[randomIndex];
   }
   return text;
 }
-
-app.get("/web", (req, res) => {
-  res.sendFile(path.join(__dirname, "views", "web.html"))
-})
 
 app.get("/login", (req, res) => {
   const state = generateRandomString(16);
   req.session.state = state;
 
   const scopes = ["user-read-private", "user-read-email"];
-  const authorizeURL = spotifyApi.createAuthorizeURL(scopes, state); // Use correct method and pass 'scopes'
+  const authorizeURL = spotifyApi.createAuthorizeURL(scopes, state);
   res.redirect(authorizeURL);
 });
 
@@ -67,16 +63,40 @@ app.get("/callback", async (req, res) => {
 
     spotifyApi.setAccessToken(access_token);
 
-    res.redirect("/logged");
+    res.redirect("/profile"); // Updated route to /profile
   } catch (err) {
     console.error("Error exchanging code for access token:", err);
     res.status(500).send("Error");
   }
 });
 
-// Serve the 'logged.html' file when the user is logged in
-app.get("/logged", (req, res) => {
-  res.sendFile(path.join(__dirname, "views", "logged.html"));
+// Define the time ranges
+const timeRanges = ['short_term', 'medium_term', 'long_term']; // 4 weeks, 6 months, all time
+
+app.get('/top-tracks/:range', async (req, res) => {
+  const { range } = req.params;
+
+  if (!timeRanges.includes(range)) {
+    return res.status(400).send('Invalid time range');
+  }
+
+  try {
+    const data = await spotifyApi.getMyTopTracks({
+      limit: 10, // Number of tracks to retrieve
+      time_range: range, // Time range: short_term, medium_term, or long_term
+    });
+
+    const topTracks = data.body.items;
+    res.json(topTracks);
+  } catch (error) {
+    console.error('Error fetching top tracks:', error);
+    res.status(500).send('Error fetching top tracks');
+  }
+});
+
+// All other routes will serve the React app
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "build", "index.html"));
 });
 
 const port = process.env.PORT || 3000;
