@@ -10,7 +10,7 @@ const app = express();
 
 const spotifyApi = new SpotifyWebApi({
   clientId: process.env.SPOTIFY_CLIENT_ID,
-  clientSecret: process.env.SPOTIFY_CLIENT_SECRETS,
+  clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
   redirectUri: process.env.SPOTIFY_CLIENT_REDIRECT,
 });
 
@@ -35,6 +35,10 @@ function generateRandomString(length) {
   return text;
 }
 
+app.get("/web", (req, res) => {
+  res.sendFile(path.join(__dirname, "views", "web.html"))
+})
+
 app.get("/login", (req, res) => {
   const state = generateRandomString(16);
   req.session.state = state;
@@ -43,8 +47,6 @@ app.get("/login", (req, res) => {
   const authorizeURL = spotifyApi.createAuthorizeURL(scopes, state); // Use correct method and pass 'scopes'
   res.redirect(authorizeURL);
 });
-
-// ...
 
 app.get("/callback", async (req, res) => {
   const { code, state } = req.query;
@@ -67,16 +69,13 @@ app.get("/callback", async (req, res) => {
 
     res.redirect("/logged");
   } catch (err) {
-    console.error('Error exchanging code for access token:', err);
-    res.status(500).send('Error');
+    console.error("Error exchanging code for access token:", err);
+    res.status(500).send("Error");
   }
 });
 
-// ...
-
-
+// Serve the 'logged.html' file when the user is logged in
 app.get("/logged", (req, res) => {
-  // Serve the 'logged.html' file when the user is logged in
   res.sendFile(path.join(__dirname, "views", "logged.html"));
 });
 
